@@ -1,6 +1,7 @@
 package d2graph
 
 import (
+	"fmt"
 	"math"
 	"sort"
 	"strings"
@@ -373,10 +374,16 @@ func (obj *Object) ToShape() shape.Shape {
 
 func (obj *Object) GetLabelTopLeft() *geo.Point {
 	if obj.LabelPosition == nil {
+		fmt.Println("LabelPosition is nil")
 		return nil
 	}
 
 	s := obj.ToShape()
+	if s == nil {
+		fmt.Println("ToShape returned nil")
+		return nil
+	}
+
 	labelPosition := label.FromString(*obj.LabelPosition)
 
 	var box *geo.Box
@@ -386,10 +393,23 @@ func (obj *Object) GetLabelTopLeft() *geo.Point {
 		box = s.GetInnerBox()
 	}
 
+	if box == nil {
+		fmt.Println("Bounding box is nil")
+		return nil
+	}
+
+	fmt.Printf("Bounding box: %+v\n", box)
+	fmt.Printf("Label dimensions: Width=%d, Height=%d\n", obj.LabelDimensions.Width, obj.LabelDimensions.Height)
+
 	labelTL := labelPosition.GetPointOnBox(box, label.PADDING,
 		float64(obj.LabelDimensions.Width),
 		float64(obj.LabelDimensions.Height),
 	)
+	if labelTL == nil {
+		fmt.Println("labelPosition.GetPointOnBox returned nil")
+	} else {
+		fmt.Printf("Calculated label top-left position: %+v\n", labelTL)
+	}
 	return labelTL
 }
 

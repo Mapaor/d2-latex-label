@@ -1,6 +1,7 @@
 package label
 
 import (
+	"fmt"
 	"math"
 
 	"oss.terrastruct.com/d2/lib/geo"
@@ -385,6 +386,8 @@ func (labelPosition Position) GetPointOnRoute(route geo.Route, strokeWidth, labe
 	centerPosition := CENTER_LABEL_POSITION * totalLength
 	rightPosition := RIGHT_LABEL_POSITION * totalLength
 	unlockedPosition := labelPercentage * totalLength
+	fmt.Printf("LEFT: %f, CENTER: %f, RIGHT: %f, UNLOCKED: %f\n", leftPosition, centerPosition, rightPosition, unlockedPosition)
+	fmt.Printf("PERCENTAGE: %f\n", labelPercentage)
 
 	// outside labels have to be offset in the direction of the edge's normal Vector
 	// Note: we flip the normal for Top labels but keep it as is for Bottom labels since positive Y is below in SVG
@@ -424,7 +427,7 @@ func (labelPosition Position) GetPointOnRoute(route geo.Route, strokeWidth, labe
 
 		return geo.NewPoint(basePoint.X+normalX*offsetX, basePoint.Y+normalY*offsetY)
 	}
-
+	fmt.Printf("POSITIONING: %s\n", labelPosition.String())
 	var labelCenter *geo.Point
 	switch labelPosition {
 	case InsideMiddleLeft:
@@ -468,6 +471,7 @@ func (labelPosition Position) GetPointOnRoute(route geo.Route, strokeWidth, labe
 	// convert from center to top left
 	labelCenter.X = chopPrecision(labelCenter.X - width/2)
 	labelCenter.Y = chopPrecision(labelCenter.Y - height/2)
+	fmt.Printf("POSITION: X=%.4f, Y=%.4f\n", labelCenter.X, labelCenter.Y)
 	return labelCenter, index
 }
 

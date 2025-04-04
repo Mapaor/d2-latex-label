@@ -1191,6 +1191,9 @@ type Edge struct {
 	Dst *KeyPath `json:"dst"`
 	// empty, > or *
 	DstArrow string `json:"dst_arrow"`
+
+	Label   string `json:"label,omitempty"`    // Field for the label text
+	IsLatex bool   `json:"is_latex,omitempty"` // Flag to indicate if the label is LaTeX
 }
 
 func (e1 *Edge) Equals(e2 *Edge) bool {

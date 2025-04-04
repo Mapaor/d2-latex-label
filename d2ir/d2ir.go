@@ -497,6 +497,8 @@ type Edge struct {
 	Map_     *Map    `json:"map,omitempty"`
 
 	References []*EdgeReference `json:"references,omitempty"`
+
+	IsLatex bool `json:"is_latex,omitempty"` // Flag to indicate if the label is LaTeX
 }
 
 func (e *Edge) ImportAST() d2ast.Node {

@@ -394,7 +394,6 @@ func (diagram Diagram) BoundingBox() (topLeft, bottomRight Point) {
 			y2 = go2.Max(y2, int(labelTL.Y)+connection.DstLabel.LabelHeight)
 		}
 	}
-
 	return Point{x1, y1}, Point{x2, y2}
 }
 
@@ -642,6 +641,9 @@ type Connection struct {
 	IconBorderRadius float64  `json:"iconBorderRadius,omitempty"`
 
 	ZIndex int `json:"zIndex"`
+
+	// New field for Latex support
+	IsLatex bool `json:"isLatex,omitempty"` // Indicates if the label is Latex
 }
 
 func (c *Connection) GetIconPosition() *geo.Point {

@@ -870,7 +870,22 @@ func drawConnection(writer io.Writer, diagramHash string, connection d2target.Co
 
 	var labelTL *geo.Point
 	if connection.Label != "" {
-		labelTL = connection.GetLabelTopLeft()
+		if connection.Src == "" {
+			panic("connection.Src is empty")
+		}
+		if connection.Dst == "" {
+			panic("connection.Dst is empty")
+		}
+		if connection.Label == "" {
+			panic("connection.Label is empty")
+		}
+		if len(connection.Route) == 0 {
+			panic("connection.Route is nil or empty")
+		}
+		labelTL = connection.GetLabelTopLeft() // FAILS HERE (RETURNS NIL)
+		if labelTL == nil {
+			return "", fmt.Errorf("GetLabelTopLeft RETURNED NIL for connection: %s, Connection Route: %v", connection.ID, connection.Route)
+		}
 		labelTL.X = math.Round(labelTL.X)
 		labelTL.Y = math.Round(labelTL.Y)
 
@@ -966,46 +981,60 @@ func drawConnection(writer io.Writer, diagramHash string, connection d2target.Co
 	}
 
 	if connection.Label != "" {
-		fontClass := "text"
-		if connection.FontFamily == "mono" {
-			fontClass = "text-mono"
-		}
-		if connection.Bold {
-			fontClass += "-bold"
-		} else if connection.Italic {
-			fontClass += "-italic"
-		}
-		if connection.Underline {
-			fontClass += " text-underline"
-		}
-		if connection.Fill != color.Empty {
-			rectEl := d2themes.NewThemableElement("rect", inlineTheme)
-			rectEl.Rx = 10
-			rectEl.X, rectEl.Y = labelTL.X-4, labelTL.Y-3
-			rectEl.Width, rectEl.Height = float64(connection.LabelWidth)+8, float64(connection.LabelHeight)+6
-			rectEl.Fill = connection.Fill
-			fmt.Fprint(writer, rectEl.Render())
-		}
+		if connection.IsLatex {
+			// Render LaTeX label
+			renderedLabel, err := d2latex.Render(connection.Label)
+			if err != nil {
+				return "", fmt.Errorf("failed to render LaTeX label: %w", err)
+			}
 
-		textEl := d2themes.NewThemableElement("text", inlineTheme)
-		textEl.X = labelTL.X + float64(connection.LabelWidth)/2
-		textEl.Y = labelTL.Y + float64(connection.FontSize)
-		textEl.ClassName = fontClass
-		textEl.Style = fmt.Sprintf("text-anchor:%s;font-size:%vpx", "middle", connection.FontSize)
-		textEl.Content = RenderText(connection.Label, textEl.X, float64(connection.LabelHeight))
-
-		if connection.Link != "" {
-			textEl.ClassName += " text-underline text-link"
-
-			fmt.Fprintf(writer, `<a href="%s" xlink:href="%[1]s">`, svg.EscapeText(connection.Link))
+			// Embed the LaTeX-rendered SVG
+			fmt.Fprintf(writer, `<g transform="translate(%f, %f)">%s</g>`,
+				labelTL.X, labelTL.Y, renderedLabel,
+			)
 		} else {
-			textEl.Fill = connection.GetFontColor()
-		}
+			// Render plain text label
+			fontClass := "text"
+			if connection.FontFamily == "mono" {
+				fontClass = "text-mono"
+			}
+			if connection.Bold {
+				fontClass += "-bold"
+			} else if connection.Italic {
+				fontClass += "-italic"
+			}
+			if connection.Underline {
+				fontClass += " text-underline"
+			}
+			if connection.Fill != color.Empty {
+				rectEl := d2themes.NewThemableElement("rect", inlineTheme)
+				rectEl.Rx = 10
+				rectEl.X, rectEl.Y = labelTL.X-4, labelTL.Y-3
+				rectEl.Width, rectEl.Height = float64(connection.LabelWidth)+8, float64(connection.LabelHeight)+6
+				rectEl.Fill = connection.Fill
+				fmt.Fprint(writer, rectEl.Render())
+			}
 
-		fmt.Fprint(writer, textEl.Render())
+			textEl := d2themes.NewThemableElement("text", inlineTheme)
+			textEl.X = labelTL.X + float64(connection.LabelWidth)/2
+			textEl.Y = labelTL.Y + float64(connection.FontSize)
+			textEl.ClassName = fontClass
+			textEl.Style = fmt.Sprintf("text-anchor:%s;font-size:%vpx", "middle", connection.FontSize)
+			textEl.Content = RenderText(connection.Label, textEl.X, float64(connection.LabelHeight))
 
-		if connection.Link != "" {
-			fmt.Fprintf(writer, "</a>")
+			if connection.Link != "" {
+				textEl.ClassName += " text-underline text-link"
+
+				fmt.Fprintf(writer, `<a href="%s" xlink:href="%[1]s">`, svg.EscapeText(connection.Link))
+			} else {
+				textEl.Fill = connection.GetFontColor()
+			}
+
+			fmt.Fprint(writer, textEl.Render())
+
+			if connection.Link != "" {
+				fmt.Fprintf(writer, "</a>")
+			}
 		}
 	}
 
@@ -2309,7 +2338,6 @@ func Render(diagram *d2target.Diagram, opts *RenderOpts) ([]byte, error) {
 	} else {
 		opts = &RenderOpts{}
 	}
-
 	buf := &bytes.Buffer{}
 
 	// only define shadow filter if a shape uses it
@@ -2383,6 +2411,7 @@ func Render(diagram *d2target.Diagram, opts *RenderOpts) ([]byte, error) {
 	}
 	for _, obj := range allObjects {
 		if c, is := obj.(d2target.Connection); is {
+			// FAILS HERE
 			labelMask, err := drawConnection(buf, isolatedDiagramHash, c, markers, idToShape, jsRunner, inlineTheme)
 			if err != nil {
 				return nil, err

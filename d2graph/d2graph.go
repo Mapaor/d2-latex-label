@@ -650,9 +650,16 @@ func (obj *Object) AbsID() string {
 }
 
 func (obj *Object) AbsIDArray() []string {
-	if obj.Parent == nil {
-		return nil
+	// CANVI TEMPORAL
+	if obj == nil {
+		// Return an empty array if the object itself is nil
+		return []string{}
 	}
+	if obj.Parent == nil {
+		// If the parent is nil, return the object's ID as the only element
+		return []string{obj.ID}
+	}
+	// Recursively append the parent's AbsIDArray with the object's ID
 	return append(obj.Parent.AbsIDArray(), obj.ID)
 }
 
@@ -955,6 +962,7 @@ func (obj *Object) GetLabelSize(mtexts []*d2target.MText, ruler *textmeasure.Rul
 		if obj.Language == "latex" {
 			width, height, err := d2latex.Measure(obj.Text().Text)
 			if err != nil {
+				fmt.Printf("Error measuring latex: %v\n", err)
 				return nil, err
 			}
 			dims = d2target.NewTextDimensions(width, height)
@@ -1222,6 +1230,10 @@ type Edge struct {
 	Attributes `json:"attributes,omitempty"`
 
 	ZIndex int `json:"zIndex"`
+
+	// LaTeX support
+	IsLatex       bool   `json:"isLatex,omitempty"`       // Indicates if the label is LaTeX
+	RenderedLabel string `json:"renderedLabel,omitempty"` // Stores the rendered LaTeX content (optional)
 }
 
 type EdgeReference struct {
@@ -1306,7 +1318,7 @@ func (e *Edge) AbsID() string {
 	return fmt.Sprintf("%s(%s %s %s)[%d]", commonKey, strings.Join(srcIDA, "."), e.ArrowString(), strings.Join(dstIDA, "."), e.Index)
 }
 
-func (obj *Object) Connect(srcID, dstID []d2ast.String, srcArrow, dstArrow bool, label string) (*Edge, error) {
+func (obj *Object) Connect(srcID, dstID []d2ast.String, srcArrow, dstArrow bool, label string, isLatex bool) (*Edge, error) { // New 'isLatex' parameter
 	for _, id := range [][]d2ast.String{srcID, dstID} {
 		for _, p := range id {
 			if _, ok := d2ast.ReservedKeywords[p.ScalarString()]; ok && p.IsUnquoted() {
@@ -1328,6 +1340,7 @@ func (obj *Object) Connect(srcID, dstID []d2ast.String, srcArrow, dstArrow bool,
 		SrcArrow: srcArrow,
 		Dst:      dst,
 		DstArrow: dstArrow,
+		IsLatex:  isLatex, // Latex flag
 	}
 	e.initIndex()
 
@@ -1498,7 +1511,6 @@ func (g *Graph) SetDimensions(mtexts []*d2target.MText, ruler *textmeasure.Ruler
 
 	for _, obj := range g.Objects {
 		obj.Box = &geo.Box{}
-
 		// user-specified label/icon positions
 		if obj.HasLabel() && obj.Attributes.LabelPosition != nil {
 			scalar := *obj.Attributes.LabelPosition
@@ -1642,6 +1654,14 @@ func (g *Graph) SetDimensions(mtexts []*d2target.MText, ruler *textmeasure.Ruler
 
 		if edge.Label.Value == "" {
 			continue
+		}
+
+		if edge.IsLatex { // Latex label rendering
+			rendered, err := d2latex.Render(edge.Label.Value)
+			if err != nil {
+				return fmt.Errorf("failed to render LaTeX label: %w", err)
+			}
+			edge.RenderedLabel = rendered
 		}
 
 		if g.Theme != nil && g.Theme.SpecialRules.CapsLock && !edge.Style.NoneTextTransform() {

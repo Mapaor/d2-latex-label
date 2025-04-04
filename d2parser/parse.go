@@ -926,6 +926,21 @@ func (p *parser) parseEdges(mk *d2ast.Key, src *d2ast.KeyPath) {
 			e.Dst = dst
 			e.Range.End = e.Dst.Range.End
 		}
+
+		// Parsing the label (with latex option)
+		r, newlines, eof = p.peekNotSpace()
+		if !eof && newlines == 0 && r == ':' {
+			p.commit()
+			label := p.parseBlockString()
+			if label != nil && strings.HasPrefix(label.Tag, "latex") {
+				e.Label = label.Value
+				e.IsLatex = true
+			} else if label != nil {
+				e.Label = label.Value
+				e.IsLatex = false
+			}
+		}
+
 		mk.Edges = append(mk.Edges, e)
 		src = dst
 	}

@@ -821,7 +821,7 @@ func compileStyleFieldInit(styles *d2graph.Style, f *d2ir.Field) {
 }
 
 func (c *compiler) compileEdge(obj *d2graph.Object, e *d2ir.Edge) {
-	edge, err := obj.Connect(e.ID.SrcPath, e.ID.DstPath, e.ID.SrcArrow, e.ID.DstArrow, "")
+	edge, err := obj.Connect(e.ID.SrcPath, e.ID.DstPath, e.ID.SrcArrow, e.ID.DstArrow, "", e.IsLatex) // IsLatex as an additional argument to Connect
 	if err != nil {
 		c.errorf(e.References[0].AST(), err.Error())
 		return

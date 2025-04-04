@@ -2,6 +2,7 @@ package d2exporter
 
 import (
 	"context"
+	"fmt"
 	"net/url"
 	"strconv"
 	"strings"
@@ -21,6 +22,12 @@ import (
 
 func Export(ctx context.Context, g *d2graph.Graph, fontFamily *d2fonts.FontFamily) (*d2target.Diagram, error) {
 	diagram := d2target.NewDiagram()
+
+	// TEMPORAL: Check if g.Root is nil
+	if g.Root == nil {
+		return nil, fmt.Errorf("graph root is nil")
+	}
+
 	applyStyles(&diagram.Root, g.Root)
 	if g.Root.Label.MapKey == nil {
 		diagram.Root.Label = g.Name
@@ -37,9 +44,37 @@ func Export(ctx context.Context, g *d2graph.Graph, fontFamily *d2fonts.FontFamil
 	}
 	diagram.FontFamily = fontFamily
 
+	// TEMPORAL: Check if g.Objects contains nil
+	for i, obj := range g.Objects {
+		if obj == nil {
+			return nil, fmt.Errorf("graph object at index %d is nil", i)
+		}
+	}
+
 	diagram.Shapes = make([]d2target.Shape, len(g.Objects))
 	for i := range g.Objects {
 		diagram.Shapes[i] = toShape(g.Objects[i], g)
+	}
+
+	// TEMPORAL: Check if g.Edges contains nil
+	for i, edge := range g.Edges {
+		if edge == nil {
+			return nil, fmt.Errorf("graph edge at index %d is nil", i)
+		}
+
+		// Debugging: Check if Src and Dst are set
+		if edge.Src == nil {
+			panic(fmt.Sprintf("Edge at index %d has a nil Src field", i))
+		}
+		if edge.Dst == nil {
+			panic(fmt.Sprintf("Edge at index %d has a nil Dst field", i))
+		}
+		if edge.Src.AbsID() == "" {
+			panic(fmt.Sprintf("Edge at index %d has an empty Src ID", i))
+		}
+		if edge.Dst.AbsID() == "" {
+			panic(fmt.Sprintf("Edge at index %d has an empty Dst ID", i))
+		}
 	}
 
 	diagram.Connections = make([]d2target.Connection, len(g.Edges))
@@ -143,6 +178,9 @@ func applyTheme(shape *d2target.Shape, obj *d2graph.Object, theme *d2themes.Them
 }
 
 func applyStyles(shape *d2target.Shape, obj *d2graph.Object) {
+	if obj == nil {
+		panic("applyStyles called with a nil object")
+	}
 	if obj.Style.Opacity != nil {
 		shape.Opacity, _ = strconv.ParseFloat(obj.Style.Opacity.Value, 64)
 	}
@@ -477,6 +515,9 @@ func toConnection(edge *d2graph.Edge, theme *d2themes.Theme) d2target.Connection
 			connection.Color = color.N2
 		}
 	}
+
+	// Propagate the IsLatex field
+	connection.IsLatex = edge.IsLatex
 
 	return *connection
 }
